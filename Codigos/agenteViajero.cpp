@@ -4,6 +4,10 @@
 
 using namespace std;
 
+// Problema del Agente Viajero
+// Julio César Rodríguez Figueroa A01029680
+// Jin Sik Joon A01026630
+
 struct Edge { // Estructura para representar una arista en el gráfo 
     int n1; // Nodo 1
     int n2; // Nodo 2
@@ -37,98 +41,78 @@ vector<vector<int>> construirMInicial(int n, vector<Edge> aristas){// Función p
     return tablero;
 }
 
-vector<vector<int>> floyd(int n, vector<Edge> aristas){
-    vector<vector<int>> M = construirMInicial(n, aristas) ; // Matriz de distancias mínimas inicializada con valores altos y en la diagonal 0
-    for (int k = 0; k < n; k++) { // Número de matrices que se van a generar
-        for (int i = 0; i < n; i++) { // Filas
-            for (int j = 0; j < n; j++) { // Columnas
-                if (M[i][j] > M[i][k] + M[k][j]) {
-                    M[i][j] = M[i][k] + M[k][j];
-                }
-                else continue;
+Result agenteViajero(int n, vector<Edge> aristas, int nodo_inicio) { 
+    vector<vector<int>> matriz_adyacencia = construirMInicial(n, aristas); // Obtener la matriz de distancias mínimas usando Floyd-Warshall
+    vector<int> nodos; // Vector para verificar los nodos restantes
+    for (int i = 0; i < n; ++i) {
+        if (i != nodo_inicio) nodos.push_back(i); // Añadimos todo menos el inicio
+    }
+
+    int mejor_peso = 9999; // Inicializar el mejor peso con un valor alto
+    vector<int> mejor_camino; // Vector para almacenar el mejor camino encontrado
+
+    // Do while para para revisar todos los caminos posibles
+    do {
+        vector<int> camino; // Camino actual a revisar
+        int peso_actual = 0;
+        bool camino_valido = true; // Bandera para verificar si el camino es válido
+        int nodo_actual = nodo_inicio;
+
+        camino.push_back(nodo_actual);
+
+        for (int i = 0; i < nodos.size(); ++i) {
+            int nodo_siguiente = nodos[i]; // Nodo siguiente en el camino actual
+            int peso = matriz_adyacencia[nodo_actual][nodo_siguiente];
+            if (peso == 9999) { // Si no hay camino entre nodos
+                camino_valido = false;
+                break;
+            }
+            peso_actual += peso;
+            camino.push_back(nodos[i]);
+            nodo_actual = nodos[i];
+
+            // Salir del ciclo si el peso actual ya supera el mejor peso encontrado
+            if (peso_actual >= mejor_peso) {
+                camino_valido = false;
+                break;
             }
         }
-    }
-    return M;
-}
 
-Result agenteViajero(int n, vector<Edge> aristas, int nodo_inicio) { 
-    vector<int> camino; // Vector para almacenar el mejor camino
-    vector<vector<int>> matriz_adyacencia = construirMInicial(n, aristas); // Obtener la matriz de distancias mínimas usando Floyd-Warshall
-    for (int i = 0; i < n; ++i) camino.push_back(i);
-
-    int peso_total = 0;
-    if (n > 0) {
-        for (int i = 0; i < n - 1; ++i) {
-            int a = camino[i];
-            int b = camino[i + 1];
-            int w = matriz_adyacencia[a][b];
-            peso_total += w;
+        if (camino_valido) { // Buscar regreso al nodo inicial
+            int peso = matriz_adyacencia[nodo_actual][nodo_inicio];
+            if (peso == 9999) { // Si no hay camino de regreso al inicio
+                camino_valido = false;
+            } else {
+                peso_actual += peso;
+                camino.push_back(nodo_inicio);
+            }
         }
-        // regresar al inicio
-        peso_total += matriz_adyacencia[camino.back()][camino.front()];
-    }
+
+        // Si el camino es válido y el peso es menor que el mejor encontrado, actualizar
+        if (camino_valido && peso_actual < mejor_peso) {
+            mejor_peso = peso_actual;
+            mejor_camino = camino;
+        }
+
+    } while (next_permutation(nodos.begin(), nodos.end())); // Usamos un iterador para poder manerjar de mejor manera las permutaciones para los nodos.
+    // Referencia aquí: https://en.cppreference.com/w/cpp/algorithm/next_permutation
 
     // Construir las representaciones en string
     string camino_ida;
-    for (size_t i = 0; i < camino.size(); ++i) {
-        camino_ida += to_string(camino[i]);
-        if (i + 1 < camino.size()) camino_ida += " -> ";
+    for (size_t i = 0; i < mejor_camino.size(); ++i) {
+        camino_ida += to_string(mejor_camino[i]);
+        if (i + 1 < mejor_camino.size()) camino_ida += " -> ";
     }
     
-    // Camino vuelta: listado inverso de nodos
+    // Camino vuelta
     string camino_vuelta;
-    camino_vuelta = to_string(camino.front()); // Empezar con el nodo inicial
-    camino_vuelta += " -> ";
-    for (size_t i = 0; i < camino.size(); ++i) {
+    for (size_t i = 0; i < mejor_camino.size(); ++i) {
         if (i) camino_vuelta += " -> ";
-        camino_vuelta += to_string(camino[camino.size() - 1 - i]);
+        camino_vuelta += to_string(mejor_camino[mejor_camino.size() - 1 - i]);
     }
-    // Rotar el vector 'camino' para que empiece en 'nodo_inicio' y recalcular peso y cadenas
-    int start_idx = -1;
-    for (int i = 0; i < n; ++i) {
-        if (camino[i] == nodo_inicio) { start_idx = i; break; }
-    }
-    if (start_idx == -1) start_idx = 0; // fallback por si no se encuentra
-
-    vector<int> nuevo_camino;
-    nuevo_camino.reserve(camino.size());
-    for (int i = 0; i < n; ++i) {
-        nuevo_camino.push_back(camino[(start_idx + i) % n]);
-    }
-    camino = move(nuevo_camino);
-
-    // Recalcular el peso total del recorrido (ida + regreso)
-    peso_total = 0;
-    if (n > 0) {
-        for (int i = 0; i < n - 1; ++i) {
-            int a = camino[i];
-            int b = camino[i + 1];
-            peso_total += matriz_adyacencia[a][b];
-        }
-        peso_total += matriz_adyacencia[camino.back()][camino.front()];
-    }
-
-    // Reconstruir la cadena del camino de ida (sin el regreso final, que se añade después)
-    camino_ida.clear();
-    for (size_t i = 0; i < camino.size(); ++i) {
-        camino_ida += to_string(camino[i]);
-        if (i + 1 < camino.size()) camino_ida += " -> ";
-    }
-
-    // Reconstruir la cadena del camino de vuelta empezando desde el nodo inicial
-    camino_vuelta.clear();
-    camino_vuelta += to_string(camino.front());
-    camino_vuelta += " -> ";
-    for (size_t i = 0; i < camino.size(); ++i) {
-        if (i) camino_vuelta += " -> ";
-        camino_vuelta += to_string(camino[camino.size() - 1 - i]);
-    }
-    // Añadir el regreso al nodo inicial en el camino de ida
-    camino_ida += " -> " + to_string(camino.front());
 
     // Regresamos el resultado
-    return {matriz_adyacencia, camino_ida, camino_vuelta, peso_total};
+    return {matriz_adyacencia, camino_ida, camino_vuelta, mejor_peso};
 }
 
 int main() {
@@ -203,23 +187,37 @@ int main() {
     };
     
     int n = 10; // Número de nodos
-    for (int i = 0; i < n; ++i) {
-        Result resultado = agenteViajero(n, aristas1, i);
-        cout << "Nodo inicio: " << i << endl;
-        cout << "Matriz de distancias mínimas:" << endl;
-        for (const auto& fila : resultado.matriz) {
-            for (const auto& valor : fila) {
-                if (valor == 9999)
-                    cout << "INF" << "\t";
-                else
-                    cout << valor << "\t";
-            }
-            cout << endl;
+    Result resultado1 = agenteViajero(n, aristas1, 0); // Nodo de inicio: Y (0)
+    cout << "Nodo inicio: " << 0  << " Yucatan" << endl;
+    cout << "Matriz de distancias mínimas:" << endl;
+    for (int i = 0; i < resultado1.matriz.size(); ++i) {
+        for (int j = 0; j < resultado1.matriz[i].size(); ++j) {
+            if (resultado1.matriz[i][j] == 9999)
+                cout << "INF" << "\t";
+            else
+                cout << resultado1.matriz[i][j] << "\t";
         }
-        cout << "Camino de ida: " << resultado.camino_ida << endl;
-        cout << "Camino de vuelta: " << resultado.camino_vuelta << endl;
-        cout << "Peso mínimo del recorrido: " << resultado.peso_minimo << endl;
-        cout << "----------------------------------------" << endl;
+        cout << endl;
     }
+    cout << "Camino de ida: " << resultado1.camino_ida << endl;
+    cout << "Camino de vuelta: " << resultado1.camino_vuelta << endl;
+    cout << "Peso mínimo del recorrido: " << resultado1.peso_minimo << endl;
+    cout << "----------------------------------------" << endl;
+    Result resultado2 = agenteViajero(n, aristas1, 6); // Nodo de inicio: X (6)
+    cout << "Nodo inicio: " << 6  << " Xalapa" << endl;
+    cout << "Matriz de distancias mínimas:" << endl;
+    for (int i = 0; i < resultado2.matriz.size(); ++i) {
+        for (int j = 0; j < resultado2.matriz[i].size(); ++j) {
+            if (resultado2.matriz[i][j] == 9999)
+                cout << "INF" << "\t";
+            else
+                cout << resultado2.matriz[i][j] << "\t";
+        }
+        cout << endl;
+    }
+    cout << "Camino de ida: " << resultado2.camino_ida << endl;
+    cout << "Camino de vuelta: " << resultado2.camino_vuelta << endl;
+    cout << "Peso mínimo del recorrido: " << resultado2.peso_minimo << endl;
+    cout << "----------------------------------------" << endl;
     return 0;
 }
